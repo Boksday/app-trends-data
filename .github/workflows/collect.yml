@@ -1,0 +1,47 @@
+name: collect
+
+# 하루 4번(한국 시각 02·08·14·20시) 수집하고, 08시 수집 뒤에 텔레그램 리포트를 보낸다.
+on:
+  schedule:
+    - cron: "0 23,5,11,17 * * *"
+  workflow_dispatch:
+    inputs:
+      report:
+        description: "리포트도 보내기"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/collect.mjs
+      - name: Commit data
+        run: |
+          git config user.name "app-trends-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
+      - name: When
+        id: when
+        run: echo "hour=$(date -u +%H)" >> "$GITHUB_OUTPUT"
+      # 08시(UTC 23시) 수집 뒤에만 보낸다. 실행이 늦어져 자정을 넘겨도(UTC 00시) 보낸다.
+      - name: Morning report
+        if: (github.event_name == 'schedule' && (steps.when.outputs.hour == '23' || steps.when.outputs.hour == '00')) || inputs.report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/report.mjs
