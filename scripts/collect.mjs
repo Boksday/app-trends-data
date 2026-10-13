@@ -180,8 +180,13 @@ async function main() {
     if (country === "kr") for (const s of Object.values(searches)) s.results.forEach((id) => ids.add(id));
     const info = await lookup([...ids], country);
     for (const [id, a] of Object.entries(info)) {
-      apps[id] = { ...apps[id], ...a };
+      // 평가 수와 이름은 나라마다 다르다. 한국 → 미국 → 일본 순으로 먼저 오른 나라 값을 쓴다.
+      // 덮어쓰면 시간마다 다른 나라 값이 섞여 '평가 급증'이 엉터리가 된다.
+      if (id in ratings) continue;
       ratings[id] = a.ratings;
+      const known = apps[id];
+      const rank = (c) => COUNTRIES.indexOf(c);
+      if (!known || rank(country) <= rank(known.country)) apps[id] = { ...known, ...a };
     }
   }
 
