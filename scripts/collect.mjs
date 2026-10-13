@@ -10,13 +10,16 @@ import fs from "node:fs";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const DATA = `${ROOT}data`;
-const COUNTRIES = ["kr", "us"];
+// 해외(미국·일본)에서 먼저 뜬 앱이 한국에서 뒤늦게 뜨는 경우가 많아, 해외도 장르별로 모은다.
+const COUNTRIES = ["kr", "us", "jp"];
+/** 장르별 무료 50위를 모으는 나라 */
+const GENRE_COUNTRIES = ["kr", "us"];
 const CHARTS = {
   free: "topfreeapplications",
   paid: "toppaidapplications",
   grossing: "topgrossingapplications",
 };
-/** 한국은 장르별 무료 순위도 50위까지 받는다. */
+/** 장르별 무료 순위 50위 */
 const KR_GENRES = {
   6014: "games",
   6015: "finance",
@@ -103,6 +106,32 @@ async function hints(term) {
   return [...xml.matchAll(/<key>term<\/key>\s*<string>([^<]+)<\/string>/g)].map((m) => m[1]);
 }
 
+/**
+ * 사람들이 실제로 많이 찾는 검색어. 애플은 인기 검색어를 공개하지 않아서, 한국어 첫 글자 84개와 영어 a~z를
+ * 넣어 나오는 자동완성(많이 찾는 순서)을 모은다. 위에 나올수록 점수가 높다(1위 10점 … 10위 1점).
+ */
+const VOWELS = [0, 4, 8, 13, 20, 1]; // ㅏ ㅓ ㅗ ㅜ ㅣ ㅐ (유니코드 중성 순번)
+const INITIAL_INDEX = [0, 2, 3, 5, 6, 7, 9, 11, 12, 14, 15, 16, 17, 18];
+function popularSeeds() {
+  const syllables = INITIAL_INDEX.flatMap((c) => VOWELS.map((v) => String.fromCharCode(0xac00 + (c * 21 + v) * 28)));
+  return [...syllables, ..."abcdefghijklmnopqrstuvwxyz"];
+}
+async function popularTerms() {
+  const score = new Map();
+  for (const seed of popularSeeds()) {
+    const list = await hints(seed).catch(() => []);
+    list.slice(0, 10).forEach((term, i) => {
+      if (term.length < 2) return;
+      score.set(term, (score.get(term) ?? 0) + (10 - i));
+    });
+    await sleep(800);
+  }
+  return [...score.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 400)
+    .map(([term, points]) => ({ term, points }));
+}
+
 /** 검색 결과 순서(앱 ID 25개) */
 async function search(term) {
   const data = await getJson(
@@ -124,9 +153,11 @@ async function main() {
       await sleep(500);
     }
   }
-  for (const [genre, name] of Object.entries(KR_GENRES)) {
-    charts[`kr/free/${name}`] = await chart("kr", CHARTS.free, 50, genre);
-    await sleep(500);
+  for (const country of GENRE_COUNTRIES) {
+    for (const [genre, name] of Object.entries(KR_GENRES)) {
+      charts[`${country}/free/${name}`] = await chart(country, CHARTS.free, 50, genre);
+      await sleep(500);
+    }
   }
 
   const keywords = fs
@@ -155,6 +186,13 @@ async function main() {
   }
 
   const trends = await googleTrends().catch(() => []);
+  // 인기 검색어는 요청이 많아 3시간마다(한국 0·3·6…시) 모은다. 그 사이에는 오늘 스냅샷에 있던 것을 그대로 둔다.
+  const kstHour = new Date(now.getTime() + 9 * 3600_000).getUTCHours();
+  const previous = readJson(`${DATA}/snapshots/${date}.json`, null);
+  const popular =
+    kstHour % 3 === 0 || !previous?.popular || process.env.FORCE_POPULAR
+      ? await popularTerms()
+      : previous.popular;
   // 대기업 표시: big-publishers.txt의 이름이 개발사에 들어 있으면 big. 앱에서 기본으로 숨긴다.
   const bigNames = fs
     .readFileSync(`${ROOT}big-publishers.txt`, "utf8")
@@ -168,7 +206,7 @@ async function main() {
     a.big = bigNames.some((n) => artist.includes(n)) || PUBLIC.test(a.artist ?? "") || (a.ratings ?? 0) >= 30_000;
   }
 
-  const snapshot = { date, at: now.toISOString(), charts, ratings, searches, trends };
+  const snapshot = { date, at: now.toISOString(), charts, ratings, searches, trends, popular };
   fs.mkdirSync(`${DATA}/snapshots`, { recursive: true });
   fs.writeFileSync(`${DATA}/snapshots/${date}.json`, JSON.stringify(snapshot));
   fs.writeFileSync(`${DATA}/latest.json`, JSON.stringify(snapshot));
