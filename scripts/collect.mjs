@@ -4,7 +4,8 @@
 // data/snapshots/YYYY-MM-DD.json  그날 마지막 수집(순위 앱 ID 목록, 리뷰 수, 검색어)
 // data/apps.json                  순위에 든 적 있는 앱 정보(이름·개발사·장르·아이콘·평점)
 // data/latest.json                가장 최근 수집(앱이 처음 읽는 파일)
-// data/index.json                 쌓인 날짜 목록
+// data/index.json                 쌓인 날짜와 시간별 기록 목록
+// data/runs/YYYY-MM-DDTHH.json    매시간 수집(순위·평가 수만). 급상승 계산용이라 8일치만 남긴다.
 import fs from "node:fs";
 
 const ROOT = new URL("../", import.meta.url).pathname;
@@ -47,6 +48,17 @@ async function getJson(url, tries = 3) {
       await sleep(2000 * i);
     }
   }
+}
+
+/** 구글 트렌드 한국 급상승 검색어(공식 RSS) */
+async function googleTrends() {
+  const res = await fetch("https://trends.google.com/trending/rss?geo=KR", { headers: { "User-Agent": UA } });
+  if (!res.ok) return [];
+  const xml = await res.text();
+  return [...xml.matchAll(/<item>\s*<title>([^<]+)<\/title>[\s\S]*?<ht:approx_traffic>([^<]*)<\/ht:approx_traffic>/g)].map((m) => ({
+    term: m[1],
+    traffic: m[2],
+  }));
 }
 
 /** 순위 피드에서 앱 ID 목록(1위부터) */
@@ -142,17 +154,46 @@ async function main() {
     }
   }
 
-  const snapshot = { date, at: now.toISOString(), charts, ratings, searches };
+  const trends = await googleTrends().catch(() => []);
+  // 대기업 표시: big-publishers.txt의 이름이 개발사에 들어 있으면 big. 앱에서 기본으로 숨긴다.
+  const bigNames = fs
+    .readFileSync(`${ROOT}big-publishers.txt`, "utf8")
+    .split("\n")
+    .map((l) => l.trim().toLowerCase())
+    .filter((l) => l && !l.startsWith("#"));
+  // 정부·공공기관과, 평가가 3만 개 넘게 쌓여 이미 자리 잡은 앱도 1인 개발에 참고가 안 되니 같이 뺀다.
+  const PUBLIC = /(ministry|department of|government|정부|[가-힣]+(부|청|처|공단|공사|진흥원|정보원)$|^국민|^한국[가-힣]*(공사|공단|원)$)/i;
+  for (const a of Object.values(apps)) {
+    const artist = (a.artist ?? "").toLowerCase();
+    a.big = bigNames.some((n) => artist.includes(n)) || PUBLIC.test(a.artist ?? "") || (a.ratings ?? 0) >= 30_000;
+  }
+
+  const snapshot = { date, at: now.toISOString(), charts, ratings, searches, trends };
   fs.mkdirSync(`${DATA}/snapshots`, { recursive: true });
   fs.writeFileSync(`${DATA}/snapshots/${date}.json`, JSON.stringify(snapshot));
   fs.writeFileSync(`${DATA}/latest.json`, JSON.stringify(snapshot));
   fs.writeFileSync(`${DATA}/apps.json`, JSON.stringify(apps));
+  // 시간별 기록(순위·평가 수만)과 8일 넘은 기록 지우기
+  const hour = new Date(now.getTime() + 9 * 3600_000).toISOString().slice(0, 13);
+  fs.mkdirSync(`${DATA}/runs`, { recursive: true });
+  fs.writeFileSync(`${DATA}/runs/${hour}.json`, JSON.stringify({ at: now.toISOString(), charts, ratings }));
+  const keepFrom = new Date(now.getTime() + 9 * 3600_000 - 8 * 86_400_000).toISOString().slice(0, 13);
+  const runs = fs
+    .readdirSync(`${DATA}/runs`)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(".json", ""))
+    .sort()
+    .filter((r) => {
+      if (r >= keepFrom) return true;
+      fs.unlinkSync(`${DATA}/runs/${r}.json`);
+      return false;
+    });
   const dates = fs
     .readdirSync(`${DATA}/snapshots`)
     .filter((f) => f.endsWith(".json"))
     .map((f) => f.replace(".json", ""))
     .sort();
-  fs.writeFileSync(`${DATA}/index.json`, JSON.stringify({ updated: now.toISOString(), dates }));
+  fs.writeFileSync(`${DATA}/index.json`, JSON.stringify({ updated: now.toISOString(), dates, runs }));
   console.log(`collected ${date}: ${Object.keys(charts).length} charts, ${Object.keys(apps).length} apps`);
 }
 

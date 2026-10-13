@@ -1,0 +1,176 @@
+# 대기업·대형 게임사·금융사(개발사 이름에 들어 있으면 대기업으로 본다, 대소문자 무시). 앱에서 기본으로 숨긴다.
+Google
+Apple
+Meta Platforms
+Microsoft
+Amazon
+OpenAI
+Anthropic
+X Corp
+ByteDance
+TikTok
+Netflix
+Disney
+Spotify
+Snap Inc
+Pinterest
+Uber
+Airbnb
+NAVER
+네이버
+Kakao
+카카오
+LINE
+SNOW Corporation
+Samsung
+삼성
+LG
+SK
+KT Corporation
+Hyundai
+현대
+Lotte
+롯데
+CJ
+Shinsegae
+신세계
+GS
+Coupang
+쿠팡
+Viva Republica
+비바리퍼블리카
+Woowa
+우아한
+Danggeun
+당근
+Yanolja
+야놀자
+NOL
+Toss
+Bank
+은행
+Card
+카드
+Securities
+증권
+Insurance
+보험
+Nexon
+넥슨
+Netmarble
+넷마블
+NCSOFT
+엔씨소프트
+Krafton
+크래프톤
+Smilegate
+스마일게이트
+Com2uS
+컴투스
+Devsisters
+데브시스터즈
+Kakao Games
+Pearl Abyss
+Gravity
+Shift Up
+Tencent
+NetEase
+miHoYo
+COGNOSPHERE
+HoYoverse
+Supercell
+King
+Playrix
+Moon Active
+Scopely
+Zynga
+Electronic Arts
+Activision
+Ubisoft
+Nintendo
+Sony
+Roblox
+Mojang
+Niantic
+Century Games
+FunPlus
+Lilith
+Habby
+Farlight
+37GAMES
+Hong Kong Just Game
+Joy Net Games
+Temu
+PDD
+Alibaba
+Shein
+Walmart
+Target
+Starbucks
+McDonald
+Chipotle
+Instagram
+WhatsApp
+Telegram
+Discord
+WeChat
+Tencent
+淘宝
+Trip.com
+Duolingo
+UNIQLO
+MUJI
+Nike
+DAISO
+BGFretail
+Tmoney
+Tving
+Wavve
+Watcha
+NC Corp
+NHN
+RIDI
+kt millie
+Content Wavve
+KONAMI
+Garena
+Pokemon
+Epic
+Adobe
+Canva
+Dropbox
+Zoom
+LinkedIn
+Reddit
+PayPal
+Venmo
+Block, Inc
+DoorDash
+Lyft
+Costco
+eBay
+Shopify
+Tinder
+Hinge
+Bumble
+Grindr
+Twitch
+Hulu
+Peacock
+Roku
+Tubi
+Audible
+Crunchyroll
+Starz
+Fox Digital
+CBS
+WarnerMedia
+NFL
+New York Times
+Dow Jones
+T-Mobile
+Capital One
+Domino
+Ticketmaster
+Perplexity
+Suno
