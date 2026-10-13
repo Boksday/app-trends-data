@@ -203,7 +203,13 @@ async function main() {
   const PUBLIC = /(ministry|department of|government|정부|[가-힣]+(부|청|처|공단|공사|진흥원|정보원)$|^국민|^한국[가-힣]*(공사|공단|원)$)/i;
   for (const a of Object.values(apps)) {
     const artist = (a.artist ?? "").toLowerCase();
-    a.big = bigNames.some((n) => artist.includes(n)) || PUBLIC.test(a.artist ?? "") || (a.ratings ?? 0) >= 30_000;
+    // 일본 파칭코·슬롯 앱(スマスロ·パチスロ)도 참고가 안 되니 같이 뺀다.
+    const pachinko = /スマスロ|パチスロ|パチンコ/.test(a.name ?? "");
+    a.big =
+      bigNames.some((n) => artist.includes(n)) ||
+      PUBLIC.test(a.artist ?? "") ||
+      pachinko ||
+      (a.ratings ?? 0) >= 30_000;
   }
 
   const snapshot = { date, at: now.toISOString(), charts, ratings, searches, trends, popular };
