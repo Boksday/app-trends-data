@@ -1,6 +1,7 @@
 name: collect
 
-# 매시간 수집하고(급상승 계산용), 한국 08시(UTC 23시) 수집 뒤에 텔레그램 리포트를 보낸다.
+# 매시간 수집한다(급상승 계산용). 순위 숫자만 담은 리포트는 자동으로 보내지 않는다(2026-10-15 사용자).
+# 매일 아침 리포트는 Claude가 이 데이터를 읽고 '어떤 앱을 만들지' 판단해 보낸다. report.mjs는 손으로 돌릴 때만 쓴다.
 on:
   schedule:
     - cron: "7 * * * *"
@@ -35,12 +36,8 @@ jobs:
           git add data
           git diff --cached --quiet || git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
           git push
-      - name: When
-        id: when
-        run: echo "hour=$(date -u +%H)" >> "$GITHUB_OUTPUT"
-      # 08시(UTC 23시) 수집 뒤에만 보낸다. 실행이 늦어져 자정을 넘겨도(UTC 00시) 보낸다.
-      - name: Morning report
-        if: (github.event_name == 'schedule' && (steps.when.outputs.hour == '23' || steps.when.outputs.hour == '00')) || inputs.report
+      - name: Numbers report (manual only)
+        if: inputs.report
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
